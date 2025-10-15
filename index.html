@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阿美語句型魔法師</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .magic-button {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 9999px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .magic-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .magic-button:active {
+            transform: translateY(1px);
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .word-token {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+        .word-token:hover {
+            transform: scale(1.05);
+        }
+        .answer-zone, .word-bank {
+            background-color: #e2e8f0;
+            border-radius: 0.75rem;
+            min-height: 100px;
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .answer-slot {
+            width: auto;
+            min-width: 80px;
+            height: 50px;
+            background-color: #cbd5e0;
+            border: 2px dashed #a0aec0;
+            border-radius: 0.75rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        .answer-slot:hover {
+            background-color: #b8c2d1;
+        }
+        .word-token.incorrect-pos {
+            background-color: #ef4444; /* red-500 */
+        }
+        .difficulty-btn {
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .difficulty-btn.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+            border-color: #3b82f6;
+        }
+        .success-message {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #10b981;
+            text-align: center;
+            animation: fadeIn 1s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6 flex flex-col items-center min-h-screen">
+    <div class="container mx-auto p-4 md:p-8 space-y-8">
+        <header class="text-center space-y-2">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900">阿美語句型魔法師</h1>
+            <p class="text-lg md:text-xl text-gray-600">讓我們一起學習阿美語的句型結構吧！</p>
+        </header>
+
+        <main class="space-y-6">
+            <!-- 難度選擇區域 -->
+            <div class="card p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">1. 選擇難度</h2>
+                <div id="difficulty-select" class="flex justify-center gap-4">
+                    <button data-difficulty="easy" class="difficulty-btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg">簡</button>
+                    <button data-difficulty="medium" class="difficulty-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-lg">中</button>
+                    <button data-difficulty="hard" class="difficulty-btn bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg">難</button>
+                </div>
+            </div>
+            
+            <!-- 句型選擇區域 -->
+            <div class="card p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">2. 選擇句型</h2>
+                <div id="sentence-type-select" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- 句型按鈕將由 JS 動態生成 -->
+                </div>
+            </div>
+
+            <!-- 句型提示與詞彙庫區域 -->
+            <div id="challenge-area" class="card p-6 hidden">
+                <h2 id="challenge-title" class="text-2xl font-bold text-gray-800 mb-4"></h2>
+                <p id="challenge-description" class="text-gray-600 mb-4"></p>
+                <div id="sentence-blocks" class="flex flex-wrap gap-2 mb-4"></div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">詞彙庫</h3>
+                <div id="word-bank" class="word-bank">
+                    <p class="text-gray-500 text-sm italic">點擊下方詞彙即可填入句子空格中。</p>
+                </div>
+            </div>
+
+            <!-- 句子組合與結果區域 -->
+            <div id="game-controls" class="flex flex-col md:flex-row gap-6 hidden">
+                <div class="card flex-1 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center space-x-4">
+                            <span class="text-gray-700 text-lg font-bold">分數: <span id="score" class="text-blue-600 text-xl">0</span></span>
+                            <span class="text-gray-700 text-lg font-bold">連勝: <span id="streak" class="text-purple-600 text-xl">0</span></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button id="show-answer-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-full transition-colors">
+                                <span class="mr-1">👀</span> 看答案
+                            </button>
+                            <button id="hint-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-full transition-colors">
+                                <span class="mr-1">💡</span> 提示
+                            </button>
+                        </div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">你的魔法咒語 (請組合句子)</h2>
+                    <div id="answer-zone" class="answer-zone">
+                        <!-- 空格將由 JS 動態生成 -->
+                    </div>
+                    <div class="mt-6 flex justify-between items-center">
+                        <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full transition-colors">
+                            <span class="mr-1">🗑️</span> 重來
+                        </button>
+                        <button id="check-button" class="magic-button">
+                            送出答案
+                        </button>
+                        <button id="next-challenge-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-full transition-colors hidden">
+                            下一個挑戰
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card flex-1 p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">結果</h2>
+                    <div id="result-display" class="bg-gray-50 text-gray-800 text-lg flex items-center justify-center">
+                        <!-- 結果顯示在這裡 -->
+                    </div>
+                    <p id="feedback-message" class="mt-4 text-center text-lg font-bold"></p>
+                    <div id="translation-display" class="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-800 rounded hidden">
+                        <p class="font-bold">中文意思：</p>
+                        <p id="translation-text"></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const sentenceTypes = {
+            '祈使/請求句': {
+                description: '用來表達命令、請求或建議的句型。',
+                examples: [
+                    { pattern: ['動詞', '副詞', '受事者', '動作'], sentence: 'Pasifana’en ho kako micoka!', words: ['Pasifana’en', 'ho', 'kako', 'micoka', '!'], translation: '請教我畫畫！', difficulty: 'medium' },
+                    { pattern: ['修飾詞', '動詞', '主語', '所有格'], sentence: 'Safangcal han ko picoka iso!', words: ['Safangcal', 'han', 'ko', 'picoka', 'iso', '!'], translation: '你要好好畫喔！', difficulty: 'medium' },
+                    { pattern: ['動詞', '副詞', '受事者', '動作'], sentence: 'Pasifana’en ho kako mimali!', words: ['Pasifana’en', 'ho', 'kako', 'mimali', '!'], translation: '請教我打球！', difficulty: 'easy' },
+                    { pattern: ['動詞', '副詞', '受事者', '動作', '受事者', '所有格'], sentence: 'Pasifana’en ho kako somowal to sowal no Pangcah!', words: ['Pasifana’en', 'ho', 'kako', 'somowal', 'to', 'sowal', 'no', 'Pangcah', '!'], translation: '請教我說阿美語！', difficulty: 'hard' },
+                    { pattern: ['動詞', '副詞', '受事者', '動作'], sentence: 'Pasifana’en ho kako mitenooy!', words: ['Pasifana’en', 'ho', 'kako', 'mitenooy', '!'], translation: '請教我織布！', difficulty: 'easy' },
+                ],
+            },
+            '空間方位句': {
+                description: '用來描述人事物所在的地點、位置與方向的句型。',
+                examples: [
+                    { pattern: ['地點', '動詞', '受事者', '主事者'], sentence: 'I loma’ mifaca’ to riko’ cangra.', words: ['I', 'loma’', 'mifaca’', 'to', 'riko’', 'cangra', '.'], translation: '他們在家裡洗衣服。', difficulty: 'easy' },
+                    { pattern: ['地點', '動詞', '主事者'], sentence: 'I loma’ misalama cangra.', words: ['I', 'loma’', 'misalama', 'cangra', '.'], translation: '他們在家裡玩耍。', difficulty: 'easy' },
+                    { pattern: ['否定', '地點', '動詞', '主事者'], sentence: 'Caay ka i raayay a ’alo miradom cangra.', words: ['Caay', 'ka', 'i', 'raayay', 'a', '’alo', 'miradom', 'cangra', '.'], translation: '他們在不遠的溪邊裝水。', difficulty: 'medium' },
+                    { pattern: ['地點', '所有格', '地點', '動詞', '主事者'], sentence: 'Itira i tatihi no loma’ toya mimingay a ’alo midangoy cangra.', words: ['Itira', 'i', 'tatihi', 'no', 'loma’', 'toya', 'mimingay', 'a', '’alo', 'midangoy', 'cangra', '.'], translation: '他們在家旁邊的小河裡游泳。', difficulty: 'hard' },
+                     { pattern: ['時間', '地點', '動詞', '受事者', '主事者'], sentence: 'Saromi’ami’ad sa i papotal no fawahan mitala to pinokay noya tatosa malakakaay a fa’inayan cangra.', words: ['Saromi’ami’ad', 'sa', 'i', 'papotal', 'no', 'fawahan', 'mitala', 'to', 'pinokay', 'noya', 'tatosa', 'malakakaay', 'a', 'fa’inayan', 'cangra', '.'], translation: '他們天天在門外等待兩兄弟回來。', difficulty: 'hard' },
+                ],
+            },
+            '否定句': {
+                description: '用來表達否定、不存在或無法進行某事的句型。',
+                examples: [
+                    { pattern: ['否定詞', '動詞', '受事者', '所有格', '主事者'], sentence: 'Ca’ayay pakatengil to ngiha’ nira koya tata’akay a tamdaw.', words: ['Ca’ayay', 'pakatengil', 'to', 'ngiha’', 'nira', 'koya', 'tata’akay', 'a', 'tamdaw', '.'], translation: '大巨人聽不到他的聲音。', difficulty: 'medium' },
+                    { pattern: ['否定詞', '動詞', '受事者', '主事者'], sentence: 'Ca’ayay pakanengneng cingraan koya tata’akay a tamdaw.', words: ['Ca’ayay', 'pakanengneng', 'cingraan', 'koya', 'tata’akay', 'a', 'tamdaw', '.'], translation: '大巨人看不到他。', difficulty: 'medium' },
+                    { pattern: ['否定詞', '動詞', '受事者', '所有格', '主事者'], sentence: 'Ca’ayay pakafalod to wa’ay noya tata’akay a tamdaw ko ’oner.', words: ['Ca’ayay', 'pakafalod', 'to', 'wa’ay', 'noya', 'tata’akay', 'a', 'tamdaw', 'ko', '’oner', '.'], translation: '蛇綁不住大巨人的腳。', difficulty: 'hard' },
+                ],
+            },
+            '連動結構句': {
+                description: '由兩個或以上的動詞連用，共同描述一個事件的句型。',
+                examples: [
+                    { pattern: ['感嘆', '喜好', '所有格', '動作', '連接詞', '動詞', '所有格'], sentence: 'Wata ko olah nira romadiw a maharateng no mako.', words: ['Wata', 'ko', 'olah', 'nira', 'romadiw', 'a', 'maharateng', 'no', 'mako', '.'], translation: '我想起他有多喜歡唱歌。', difficulty: 'medium' },
+                    { pattern: ['感嘆', '喜好', '所有格', '動作', '連接詞', '動詞', '所有格'], sentence: 'Wata ko olah ni akong mi’adop a maharateng no mako.', words: ['Wata', 'ko', 'olah', 'ni', 'akong', 'mi’adop', 'a', 'maharateng', 'no', 'mako', '.'], translation: '我想起爺爺有多喜歡打獵。', difficulty: 'medium' },
+                    { pattern: ['感嘆', '厭惡', '所有格', '受事者', '連接詞', '動詞', '所有格'], sentence: 'Wata ko ’osi nira to fao a maharateng no mako.', words: ['Wata', 'ko', '’osi', 'nira', 'to', 'fao', 'a', 'maharateng', 'no', 'mako', '.'], translation: '我想起他有多討厭蟲子。', difficulty: 'hard' },
+                    { pattern: ['感嘆', '喜好', '所有格', '動作', '受事者', '動詞', '所有格', '?'], sentence: 'Wata ko olah ni akong mi’inip to epah maharateng no miso?', words: ['Wata', 'ko', 'olah', 'ni', 'akong', 'mi’inip', 'to', 'epah', 'maharateng', 'no', 'miso', '?'], translation: '你想起爺爺有多喜歡喝酒嗎?', difficulty: 'hard' },
+                ],
+            },
+        };
+
+        let currentSentenceData;
+        let score = 0;
+        let streak = 0;
+        let currentDifficulty = 'easy'; // 預設難度
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const difficultySelect = document.getElementById('difficulty-select');
+            const sentenceTypeSelect = document.getElementById('sentence-type-select');
+            const answerZone = document.getElementById('answer-zone');
+            const wordBank = document.getElementById('word-bank');
+            const checkButton = document.getElementById('check-button');
+            const resetButton = document.getElementById('reset-button');
+            const hintButton = document.getElementById('hint-button');
+            const nextChallengeButton = document.getElementById('next-challenge-button');
+            const resultDisplay = document.getElementById('result-display');
+            const feedbackMessage = document.getElementById('feedback-message');
+            const challengeTitle = document.getElementById('challenge-title');
+            const challengeDescription = document.getElementById('challenge-description');
+            const sentenceBlocks = document.getElementById('sentence-blocks');
+            const scoreDisplay = document.getElementById('score');
+            const streakDisplay = document.getElementById('streak');
+            const showAnswerButton = document.getElementById('show-answer-button');
+            const translationDisplay = document.getElementById('translation-display');
+            const translationText = document.getElementById('translation-text');
+            const challengeArea = document.getElementById('challenge-area');
+            const gameControls = document.getElementById('game-controls');
+
+            function renderSentenceTypes() {
+                sentenceTypeSelect.innerHTML = '';
+                Object.keys(sentenceTypes).forEach(type => {
+                    const button = document.createElement('button');
+                    button.textContent = type;
+                    button.classList.add('px-4', 'py-2', 'rounded-full', 'font-bold', 'transition-all', 'duration-200', 'bg-blue-500', 'text-white', 'hover:bg-blue-600', 'hover:scale-105');
+                    button.addEventListener('click', () => selectSentenceType(type));
+                    sentenceTypeSelect.appendChild(button);
+                });
+            }
+            
+            difficultySelect.addEventListener('click', (e) => {
+                if(e.target.tagName === 'BUTTON') {
+                    currentDifficulty = e.target.dataset.difficulty;
+                    Array.from(difficultySelect.children).forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                }
+            });
+
+            function selectSentenceType(type) {
+                const typeData = sentenceTypes[type];
+                const availableExamples = typeData.examples.filter(ex => ex.difficulty === currentDifficulty);
+
+                if (availableExamples.length === 0) {
+                    alert(`「${type}」類別中沒有「${currentDifficulty === 'easy' ? '簡' : currentDifficulty === 'medium' ? '中' : '難'}」級的題目！請選擇其他難度或句型。`);
+                    return;
+                }
+
+                const example = availableExamples[Math.floor(Math.random() * availableExamples.length)];
+                currentSentenceData = example;
+
+                challengeTitle.textContent = `${type} 挑戰！`;
+                challengeDescription.textContent = typeData.description;
+                
+                sentenceBlocks.innerHTML = '';
+                example.pattern.forEach(p => {
+                    const span = document.createElement('span');
+                    span.textContent = p;
+                    span.classList.add('bg-purple-200', 'text-purple-800', 'font-bold', 'px-3', 'py-1', 'rounded-lg', 'text-sm');
+                    sentenceBlocks.appendChild(span);
+                });
+
+                challengeArea.classList.remove('hidden');
+                gameControls.classList.remove('hidden');
+                
+                resetGame();
+                renderWordTokens();
+                renderAnswerSlots();
+            }
+
+            function renderWordTokens() {
+                wordBank.innerHTML = '';
+                const words = [...currentSentenceData.words];
+                words.sort(() => Math.random() - 0.5);
+
+                words.forEach(word => {
+                    const span = document.createElement('span');
+                    span.textContent = word;
+                    span.classList.add('word-token', 'select-none');
+                    span.setAttribute('data-word', word);
+                    wordBank.appendChild(span);
+                });
+            }
+
+            function renderAnswerSlots() {
+                answerZone.innerHTML = '';
+                currentSentenceData.words.forEach(() => {
+                    const slot = document.createElement('div');
+                    slot.classList.add('answer-slot');
+                    answerZone.appendChild(slot);
+                });
+            }
+
+            wordBank.addEventListener('click', e => {
+                if (e.target.classList.contains('word-token')) {
+                    const wordToken = e.target;
+                    const firstEmptySlot = answerZone.querySelector('.answer-slot:empty');
+                    if (firstEmptySlot) {
+                        firstEmptySlot.appendChild(wordToken);
+                    }
+                }
+            });
+
+            answerZone.addEventListener('click', e => {
+                 if (e.target.classList.contains('word-token')) {
+                    const wordToken = e.target;
+                    wordBank.appendChild(wordToken);
+                }
+            });
+
+            function showTranslation() {
+                translationText.textContent = currentSentenceData.translation;
+                translationDisplay.classList.remove('hidden');
+            }
+
+            checkButton.addEventListener('click', () => {
+                const answerSlots = Array.from(answerZone.children);
+                const correctWords = currentSentenceData.words;
+                let isPerfectMatch = true;
+                
+                if (answerSlots.some(slot => slot.children.length === 0)) {
+                    isPerfectMatch = false;
+                }
+
+                answerSlots.forEach((slot, index) => {
+                    const token = slot.firstChild;
+                    if (token) {
+                         // Reset color first
+                        token.classList.remove('incorrect-pos');
+                        if (token.getAttribute('data-word') === correctWords[index]) {
+                            // Correct word in correct place - keep it blue
+                        } else {
+                            token.classList.add('incorrect-pos');
+                            isPerfectMatch = false;
+                        }
+                    } else {
+                        // Empty slot means it's not a perfect match
+                        isPerfectMatch = false;
+                    }
+                });
+
+                if (isPerfectMatch) {
+                    resultDisplay.innerHTML = `<span class="success-message">送出成功！✨</span>`;
+                    feedbackMessage.textContent = '太棒了！你的句子組合完全正確！';
+                    resultDisplay.classList.remove('incorrect');
+                    streak++;
+                    score += 100 * streak;
+                    scoreDisplay.textContent = score;
+                    streakDisplay.textContent = streak;
+                    showTranslation();
+                    checkButton.classList.add('hidden');
+                    hintButton.classList.add('hidden');
+                    resetButton.classList.add('hidden');
+                    showAnswerButton.classList.add('hidden');
+                    nextChallengeButton.classList.remove('hidden');
+                } else {
+                    resultDisplay.innerHTML = `<p class="text-red-600 text-center">答案中有錯誤，請檢查紅色的詞彙。</p>`;
+                    resultDisplay.classList.add('incorrect');
+                    resultDisplay.classList.remove('correct');
+                    streak = 0;
+                    streakDisplay.textContent = streak;
+                    if (answerSlots.some(slot => slot.children.length === 0)) {
+                        feedbackMessage.textContent = `你的句子還沒完成喔！😔`;
+                    } else {
+                        feedbackMessage.textContent = `詞彙的順序不對，請再試一次。😔`;
+                    }
+                }
+            });
+
+            showAnswerButton.addEventListener('click', () => {
+                const correctWords = currentSentenceData.words;
+                answerZone.innerHTML = '';
+                wordBank.innerHTML = '';
+                correctWords.forEach(word => {
+                    const slot = document.createElement('div');
+                    slot.classList.add('answer-slot');
+                    const span = document.createElement('span');
+                    span.textContent = word;
+                    span.classList.add('word-token', 'select-none', 'bg-green-500');
+                    span.setAttribute('data-word', word);
+                    slot.appendChild(span);
+                    answerZone.appendChild(slot);
+                });
+                resultDisplay.innerHTML = `<p class="text-blue-600 text-center font-bold">正確答案是： ${currentSentenceData.sentence}</p>`;
+                feedbackMessage.textContent = '點擊「下一個挑戰」繼續練習！';
+                showTranslation();
+                checkButton.classList.add('hidden');
+                hintButton.classList.add('hidden');
+                showAnswerButton.classList.add('hidden');
+                resetButton.classList.add('hidden');
+                nextChallengeButton.classList.remove('hidden');
+            });
+
+            hintButton.addEventListener('click', () => {
+                const answerSlots = Array.from(answerZone.children);
+                const firstEmptySlot = answerSlots.find(slot => slot.children.length === 0);
+
+                if (firstEmptySlot) {
+                    const slotIndex = answerSlots.indexOf(firstEmptySlot);
+                    const correctWord = currentSentenceData.words[slotIndex];
+                    const wordToken = Array.from(wordBank.children).find(child => child.getAttribute('data-word') === correctWord);
+                    if (wordToken) {
+                        firstEmptySlot.appendChild(wordToken);
+                    }
+                } else {
+                    feedbackMessage.textContent = `你的句子已經完整了，不需要提示！`;
+                }
+            });
+            
+            function resetGame() {
+                resultDisplay.innerHTML = '';
+                feedbackMessage.textContent = '';
+                resultDisplay.classList.remove('correct', 'incorrect');
+                translationDisplay.classList.add('hidden');
+                checkButton.classList.remove('hidden');
+                hintButton.classList.remove('hidden');
+                showAnswerButton.classList.remove('hidden');
+                resetButton.classList.remove('hidden');
+                nextChallengeButton.classList.add('hidden');
+            }
+
+            resetButton.addEventListener('click', () => {
+                const type = challengeTitle.textContent.replace(' 挑戰！', '');
+                const currentExample = currentSentenceData;
+                resetGame();
+                renderWordTokens();
+                renderAnswerSlots();
+                wordBank.innerHTML = '';
+                const words = [...currentExample.words];
+                words.sort(() => Math.random() - 0.5);
+                words.forEach(word => {
+                    const span = document.createElement('span');
+                    span.textContent = word;
+                    span.classList.add('word-token', 'select-none');
+                    span.setAttribute('data-word', word);
+                    wordBank.appendChild(span);
+                });
+            });
+
+            nextChallengeButton.addEventListener('click', () => {
+                const type = challengeTitle.textContent.replace(' 挑戰！', '');
+                selectSentenceType(type);
+            });
+
+            renderSentenceTypes();
+            difficultySelect.querySelector(`[data-difficulty='${currentDifficulty}']`).classList.add('active');
+        });
+    </script>
+</body>
+</html>
+
