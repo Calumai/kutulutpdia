@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>族語數字學習</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .card {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .card-face-back {
+            transform: rotateY(180deg);
+        }
+        .btn-option {
+            transition: background-color 0.2s, border-color 0.2s, transform 0.1s;
+        }
+        .btn-option:hover {
+            transform: translateY(-2px);
+        }
+        .correct {
+            background-color: #22c55e !important; /* Tailwind green-500 */
+            color: white !important;
+            border-color: #16a34a !important; /* Tailwind green-600 */
+        }
+        .incorrect {
+            background-color: #ef4444 !important; /* Tailwind red-500 */
+            color: white !important;
+            border-color: #dc2626 !important; /* Tailwind red-600 */
+        }
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">族語數字學習</h1>
+            <p id="subtitle" class="mt-2 text-gray-600 dark:text-gray-400">點擊卡片來學習數字的說法</p>
+        </header>
+
+        <!-- Learning Mode -->
+        <main id="learning-mode">
+            <div id="flashcard-container" class="perspective-1000">
+                <div id="flashcard" class="card relative w-full h-64 cursor-pointer rounded-2xl shadow-lg">
+                    <div class="card-face absolute w-full h-full bg-white dark:bg-gray-800 rounded-2xl flex flex-col items-center justify-center p-6">
+                        <span id="number-display" class="text-8xl font-bold text-gray-800 dark:text-gray-100"></span>
+                        <span id="chinese-display" class="text-3xl font-medium text-gray-500 dark:text-gray-400 mt-2"></span>
+                    </div>
+                    <div class="card-face card-face-back absolute w-full h-full bg-indigo-500 dark:bg-indigo-600 rounded-2xl flex flex-col items-center justify-center p-6">
+                        <span id="word-display" class="text-5xl font-bold text-white"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 flex flex-col items-center space-y-4">
+                <div id="progress" class="text-sm text-gray-500 dark:text-gray-400"></div>
+                <div class="flex w-full justify-between items-center space-x-4">
+                    <button id="prev-btn" class="w-1/2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 px-4 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">上一個</button>
+                    <button id="next-btn" class="w-1/2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 px-4 rounded-xl transition-colors duration-200">下一個</button>
+                </div>
+                <div class="w-full bg-white dark:bg-gray-800 p-4 rounded-xl shadow-inner mt-2 space-y-4">
+                    <div>
+                        <label for="quiz-amount-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">自訂測驗題數：</label>
+                        <input type="number" id="quiz-amount-input" min="1" class="w-full bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5" placeholder="請輸入題數">
+                        <p id="max-questions-info" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></p>
+                    </div>
+                    <button id="start-quiz-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-colors duration-200">開始測驗</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Quiz Mode -->
+        <main id="quiz-mode" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 text-center">
+                <div id="quiz-progress" class="text-sm text-gray-500 dark:text-gray-400 mb-2"></div>
+                <div id="quiz-score" class="text-sm font-bold text-indigo-600 dark:text-indigo-400 mb-4"></div>
+                <p class="text-2xl text-gray-600 dark:text-gray-300 mb-2">數字</p>
+                <h2 id="quiz-question" class="text-7xl font-bold mb-6"></h2>
+                <div id="quiz-options" class="grid grid-cols-2 gap-4">
+                    <!-- Options will be inserted here by JS -->
+                </div>
+                 <div id="feedback" class="mt-4 h-6 text-lg font-bold"></div>
+            </div>
+             <button id="back-to-learning-btn" class="mt-6 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-xl transition-colors duration-200">返回學習模式</button>
+        </main>
+
+        <!-- Results Mode -->
+        <main id="results-mode" class="hidden text-center">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
+                <h2 class="text-3xl font-bold mb-2">測驗結束！</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-6">這是你的成績：</p>
+                <p id="final-score" class="text-6xl font-bold text-indigo-600 dark:text-indigo-400 mb-8"></p>
+                <div class="flex flex-col space-y-4">
+                    <button id="restart-quiz-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-colors duration-200">再玩一次</button>
+                    <button id="return-home-btn" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 px-4 rounded-xl transition-colors duration-200">回到學習模式</button>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        const vocabulary = [
+            { num: 1, chinese: '一', word: 'kingal' }, { num: 2, chinese: '二', word: 'dha' }, { num: 3, chinese: '三', word: 'tru' },
+            { num: 4, chinese: '四', word: 'spat' }, { num: 5, chinese: '五', word: 'rima' }, { num: 6, chinese: '六', word: 'mataru' },
+            { num: 7, chinese: '七', word: 'empitu' }, { num: 8, chinese: '八', word: 'maspat' }, { num: 9, chinese: '九', word: 'mngari' },
+            { num: 10, chinese: '十', word: 'maxal' }, { num: 11, chinese: '十一', word: 'maxal kingal' }, { num: 12, chinese: '十二', word: 'maxal dha' },
+            { num: 13, chinese: '十三', word: 'maxal tru' }, { num: 14, chinese: '十四', word: 'maxal spat' }, { num: 15, chinese: '十五', word: 'maxal rima' },
+            { num: 16, chinese: '十六', word: 'maxal mataru' }, { num: 17, chinese: '十七', word: 'maxal empitu' }, { num: 18, chinese: '十八', word: 'maxal maspat' },
+            { num: 19, chinese: '十九', word: 'maxal mngari' }, { num: 20, chinese: '二十', word: 'empusal' }, { num: 21, chinese: '二十一', word: 'empusal kingal' },
+            { num: 22, chinese: '二十二', word: 'empusal dha' }, { num: 23, chinese: '二十三', word: 'empusal tru' }, { num: 24, chinese: '二十四', word: 'empusal spat' },
+            { num: 25, chinese: '二十五', word: 'empusal rima' }, { num: 30, chinese: '三十', word: 'mtrul' }
+        ];
+
+        let learnIndex = 0;
+        let quizQuestions = [];
+        let currentQuizIndex = 0;
+        let score = 0;
+
+        // DOM Elements
+        const subtitle = document.getElementById('subtitle');
+        const learningMode = document.getElementById('learning-mode');
+        const quizMode = document.getElementById('quiz-mode');
+        const resultsMode = document.getElementById('results-mode');
+
+        // Learning Mode Elements
+        const flashcard = document.getElementById('flashcard');
+        const numberDisplay = document.getElementById('number-display');
+        const chineseDisplay = document.getElementById('chinese-display');
+        const wordDisplay = document.getElementById('word-display');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const progress = document.getElementById('progress');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+        const quizAmountInput = document.getElementById('quiz-amount-input');
+        const maxQuestionsInfo = document.getElementById('max-questions-info');
+
+
+        // Quiz Mode Elements
+        const quizProgress = document.getElementById('quiz-progress');
+        const quizScore = document.getElementById('quiz-score');
+        const quizQuestion = document.getElementById('quiz-question');
+        const quizOptions = document.getElementById('quiz-options');
+        const feedback = document.getElementById('feedback');
+        const backToLearningBtn = document.getElementById('back-to-learning-btn');
+
+        // Results Mode Elements
+        const finalScore = document.getElementById('final-score');
+        const restartQuizBtn = document.getElementById('restart-quiz-btn');
+        const returnHomeBtn = document.getElementById('return-home-btn');
+
+        // --- UTILITY FUNCTIONS ---
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function switchView(view) {
+            learningMode.classList.add('hidden');
+            quizMode.classList.add('hidden');
+            resultsMode.classList.add('hidden');
+            if (view === 'learn') {
+                learningMode.classList.remove('hidden');
+                subtitle.textContent = '點擊卡片來學習數字的說法';
+            } else if (view === 'quiz') {
+                quizMode.classList.remove('hidden');
+                subtitle.textContent = '選擇正確的答案';
+            } else if (view === 'results') {
+                resultsMode.classList.remove('hidden');
+                subtitle.textContent = '測驗結果';
+            }
+        }
+
+        // --- LEARNING MODE ---
+        function updateLearnCard() {
+            const currentItem = vocabulary[learnIndex];
+            numberDisplay.textContent = currentItem.num;
+            chineseDisplay.textContent = currentItem.chinese;
+            wordDisplay.textContent = currentItem.word;
+            flashcard.classList.remove('is-flipped');
+            progress.textContent = `${learnIndex + 1} / ${vocabulary.length}`;
+            prevBtn.disabled = learnIndex === 0;
+            nextBtn.disabled = learnIndex === vocabulary.length - 1;
+        }
+
+        // --- QUIZ MODE ---
+        function startQuiz() {
+            const amountStr = quizAmountInput.value;
+            const totalQuestions = vocabulary.length;
+            let numQuestions;
+
+            if (amountStr.trim() === '') {
+                // Use a custom modal/feedback instead of alert if possible
+                feedback.textContent = '請輸入題目數量！';
+                quizAmountInput.focus();
+                return;
+            }
+
+            numQuestions = parseInt(amountStr, 10);
+
+            if (isNaN(numQuestions) || numQuestions < 1) {
+                feedback.textContent = '請輸入有效的數字 (至少 1 題)！';
+                return;
+            }
+
+            if (numQuestions > totalQuestions) {
+                feedback.textContent = `題目數量不能超過 ${totalQuestions} 題！`;
+                numQuestions = totalQuestions;
+                quizAmountInput.value = totalQuestions;
+            }
+            
+            score = 0;
+            currentQuizIndex = 0;
+            quizQuestions = shuffleArray([...vocabulary]).slice(0, numQuestions);
+
+            if (quizQuestions.length === 0) {
+                 feedback.textContent = '沒有足夠的單詞來開始測驗！';
+                return;
+            }
+
+            switchView('quiz');
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            feedback.textContent = '';
+            quizOptions.innerHTML = '';
+            const question = quizQuestions[currentQuizIndex];
+            
+            quizQuestion.textContent = question.num;
+            quizProgress.textContent = `第 ${currentQuizIndex + 1} / ${quizQuestions.length} 題`;
+            quizScore.textContent = `分數: ${score}`;
+
+            const correctAnwser = question.word;
+            const distractors = vocabulary
+                .filter(item => item.word !== correctAnwser)
+                .map(item => item.word);
+            
+            const options = shuffleArray([
+                correctAnwser,
+                ...shuffleArray(distractors).slice(0, 3)
+            ]);
+
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'btn-option w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold py-3 px-4 rounded-xl';
+                button.onclick = () => checkAnswer(option, correctAnwser, button);
+                quizOptions.appendChild(button);
+            });
+        }
+
+        function checkAnswer(selected, correct, btn) {
+            const buttons = quizOptions.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+
+            if (selected === correct) {
+                score++;
+                btn.classList.add('correct');
+                feedback.textContent = '答對了！';
+                feedback.style.color = '#22c55e';
+            } else {
+                btn.classList.add('incorrect');
+                feedback.textContent = '答錯了！';
+                feedback.style.color = '#ef4444';
+                // Highlight correct answer
+                buttons.forEach(b => {
+                    if (b.textContent === correct) {
+                        b.classList.add('correct');
+                    }
+                });
+            }
+
+            setTimeout(() => {
+                currentQuizIndex++;
+                if (currentQuizIndex < quizQuestions.length) {
+                    displayQuestion();
+                } else {
+                    showResults();
+                }
+            }, 1500);
+        }
+
+        function showResults() {
+            switchView('results');
+            finalScore.textContent = `${score} / ${quizQuestions.length}`;
+        }
+
+        // --- EVENT LISTENERS ---
+        flashcard.addEventListener('click', () => flashcard.classList.toggle('is-flipped'));
+        prevBtn.addEventListener('click', () => { if (learnIndex > 0) { learnIndex--; updateLearnCard(); } });
+        nextBtn.addEventListener('click', () => { if (learnIndex < vocabulary.length - 1) { learnIndex++; updateLearnCard(); } });
+        document.addEventListener('keydown', (e) => {
+            if (learningMode.classList.contains('hidden')) return;
+            if (e.key === 'ArrowLeft') prevBtn.click();
+            else if (e.key === 'ArrowRight') nextBtn.click();
+        });
+
+        startQuizBtn.addEventListener('click', startQuiz);
+        backToLearningBtn.addEventListener('click', () => switchView('learn'));
+        restartQuizBtn.addEventListener('click', startQuiz);
+        returnHomeBtn.addEventListener('click', () => switchView('learn'));
+
+        // --- INITIAL LOAD ---
+        function init() {
+            const totalVocab = vocabulary.length;
+            quizAmountInput.max = totalVocab;
+            quizAmountInput.placeholder = `最多 ${totalVocab} 題`
+            maxQuestionsInfo.textContent = `詞彙庫中共有 ${totalVocab} 個單詞。`;
+            updateLearnCard();
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
+
