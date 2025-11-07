@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>沉浸式族語教學計畫產生器</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Inter 字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 使用 Noto Sans TC 作為主要中文字體，Inter 為備用 */
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+        }
+        /* 彈出視窗 Modal 樣式 */
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        body.modal-active {
+            overflow-x: hidden;
+            overflow-y: hidden; /* 避免背景滾動 */
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8 flex items-center justify-center">
+
+    <div class="max-w-4xl w-full mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- 標題區 -->
+        <div class="p-6 md:p-8 bg-blue-700 text-white">
+            <h1 class="text-2xl md:text-3xl font-bold">沉浸式族語教學 每週計畫產生器</h1>
+            <p class="mt-2 text-blue-100">輸入主題，點擊卡片查看「完整教案範例」並產生 AI 圖片！</p>
+        </div>
+
+        <!-- 輸入區 -->
+        <div class="p-6 md:p-8 space-y-4">
+            <div>
+                <label for="theme-input" class="block text-sm font-bold text-gray-700 mb-2">
+                    1. 請選擇或輸入本週教學主題
+                </label>
+                <!-- 新增的主題按鈕 -->
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button class="theme-btn bg-gray-100 hover:bg-blue-100 text-blue-700 font-medium py-2 px-4 rounded-full transition duration-200 text-sm">部落的食物</button>
+                    <button class="theme-btn bg-gray-100 hover:bg-blue-100 text-blue-700 font-medium py-2 px-4 rounded-full transition duration-200 text-sm">我們的家人</button>
+                    <button class="theme-btn bg-gray-100 hover:bg-blue-100 text-blue-700 font-medium py-2 px-4 rounded-full transition duration-200 text-sm">傳統服飾</button>
+                    <button class="theme-btn bg-gray-100 hover:bg-blue-100 text-blue-700 font-medium py-2 px-4 rounded-full transition duration-200 text-sm">部落的動物</button>
+                    <button class="theme-btn bg-gray-100 hover:bg-blue-100 text-blue-700 font-medium py-2 px-4 rounded-full transition duration-200 text-sm">數字與形狀</button>
+                </div>
+                <!-- 原本的輸入框 -->
+                <input type="text" id="theme-input" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200" placeholder="點擊上方按鈕，或在此輸入自訂主題...">
+            </div>
+            
+            <button id="generate-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg">
+                2. 產生隨機教學計畫
+            </button>
+        </div>
+
+        <!-- 分隔線 -->
+        <hr>
+
+        <!-- 輸出區 -->
+        <div id="plan-output" class="p-6 md:p-8 min-h-[300px]">
+            <p class="text-center text-gray-500">請先輸入主題並點擊按鈕來產生計畫...</p>
+        </div>
+
+        <!-- 頁腳 -->
+        <footer class="p-4 bg-gray-50 text-center text-sm text-gray-400 border-t">
+            靈感來源：113 學年度沉浸式族語教學幼兒園補助計畫
+        </footer>
+    </div>
+
+    <!-- Modal 彈出視窗 -->
+    <div id="modal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center z-50 pointer-events-none opacity-0">
+        <!-- 遮罩背景 -->
+        <div id="modal-overlay" class="absolute w-full h-full bg-gray-900 opacity-50"></div>
+        
+        <!-- 視窗內容 -->
+        <div id="modal-content" class="modal-content bg-white w-11/12 md:max-w-3xl mx-auto rounded-2xl shadow-lg z-50 overflow-y-auto transform -translate-y-12">
+            
+            <!-- MModal 標題 -->
+            <div class="flex justify-between items-center p-5 bg-blue-600 text-white rounded-t-2xl">
+                <h3 id="modal-title" class="text-2xl font-bold">詳細教案範本</h3>
+                <button id="modal-close" class="text-white hover:text-gray-200 text-3xl font-bold">&times;</button>
+            </div>
+            
+            <!-- Modal 內文 (將由 JS 動態填入) -->
+            <div id="modal-body" class="p-6 md:p-8" style="max-height: 70vh; overflow-y: auto;">
+                <!-- 內容將由 showDetails() 填入 -->
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 升級後的詳細活動資料庫 ---
+        // (與前一版相同，為節省篇幅故省略... 實際程式碼中會包含完整的資料庫)
+        const activityDatabase = [
+            // 語文
+            {
+                categoryKey: 'language',
+                categoryName: '語文 (六大核心素養)',
+                title: '族語繪本共讀：《<span class="theme-placeholder"></span>》',
+                details: {
+                    objective: [
+                        '能聽懂繪本中與「<span class="theme-placeholder"></span>」相關的關鍵詞彙。',
+                        '能指認繪本中的主要角色或物件。',
+                        '能樂於參與共讀，並嘗試跟著老師複誦。'
+                    ],
+                    prep: [
+                        '主題繪本（例如：關於「<span class="theme-placeholder"></span>」的繪本）',
+                        '關鍵詞彙圖卡（例如：...）',
+                        '指引棒'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (5 分鐘)：</b>老師展示繪本封面，用族語提問：「你看到了什麼？」，引導幼兒觀察並猜測故事內容。',
+                        '<b>二、發展活動 (20 分鐘)：</b>老師使用誇張的語氣和動作講述繪本，並在關鍵詞彙出現時，搭配圖卡加深印象。老師提問，請幼兒上台指認繪本中的物件。',
+                        '<b>三、綜合活動 (5-10 分鐘)：</b>老師帶領幼兒回顧繪本內容，並複習 2-3 個關鍵族語詞彙。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>（在此填入 3-5 個關鍵單詞）',
+                        '<b>應用句型：</b>i-na-su-pa-zih? (這是什麼?)'
+                    ],
+                    assessment: [
+                        '<b>口說評量：</b>觀察幼兒是否能跟著老師唸讀。',
+                        '<b>實作評量：</b>幼兒是否能正確指認圖卡或繪本內容。'
+                    ]
+                }
+            },
+            {
+                categoryKey: 'language',
+                categoryName: '語文 (六大核心素養)',
+                title: '看圖說族語：認識「<span class="theme-placeholder"></span>」',
+                details: {
+                    objective: [
+                        '能聽懂並說出 3 個與「<span class="theme-placeholder"></span>」相關的族語單詞。',
+                        '能專注聆聽老師的指令並找出對應的圖卡。'
+                    ],
+                    prep: [
+                        '「<span class="theme-placeholder"></span>」相關圖卡（例如：食物、家人、動物）',
+                        '族語詞彙卡',
+                        '小白板與筆'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (5 分鐘)：</b>老師播放主題相關的族語歌謠，帶動氣氛。',
+                        '<b>二、發展活動 (20 分鐘)：</b>老師逐一出示圖卡，教授族語名稱，並請全體跟讀、分組跟讀、個別跟讀。進行「老師說...」遊戲，老師念族語，幼兒指出正確圖卡。',
+                        '<b>三、綜合活動 (10 分鐘)：</b>進行圖卡與詞彙卡的配對遊戲。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>（主題單詞 1）',
+                        '<b>應用語詞：</b>（主題單詞 2）',
+                        '<b>應用語詞：</b>（主題單詞 3）'
+                    ],
+                    assessment: [
+                        '<b>口說評量：</b>能正確說出至少 2 個單詞。',
+                        '<b>聽力評量：</b>在「老師說」遊戲中，能 3 次中答對 2 次。'
+                    ]
+                }
+            },
+            // 認知
+            {
+                categoryKey: 'cognition',
+                categoryName: '認知 (六大核心素養)',
+                title: '族語數字：採集與分類',
+                details: {
+                    objective: [
+                        '能聽懂族語 1-5 的數字。',
+                        '能手口一致地點數 1-5 的「<span class="theme-placeholder"></span>」相關物品。',
+                        '能依據老師的族語數字指令，拿出對應數量的物品。'
+                    ],
+                    prep: [
+                        '數字卡 1-5（含族語）',
+                        '戶外採集籃',
+                        '自然物（如：葉子、石頭）或「<span class="theme-placeholder"></span>」主題教具'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (10 分鐘)：</b>帶領幼兒到戶外或學習區，採集葉子或石頭（或發放主題教具）。',
+                        '<b>二、發展活動 (15 分鐘)：</b>老師教授族語 1-5，並帶領幼兒點數採集回來的物品。老師出示數字卡，請幼兒拿出對應數量的物品。',
+                        '<b>三、綜合活動 (10 分鐘)：</b>玩「心臟病」遊戲，老師念數字，幼兒拍打正確的數字卡。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>ita (一)',
+                        '<b>應用語詞：</b>drusa (二)',
+                        '<b>應用語詞：</b>tjelu (三)',
+                        '<b>應用語詞：</b>sepatj (四)',
+                        '<b>應用語詞：</b>lima (五)'
+                    ],
+                    assessment: [
+                        '<b>實作評量：</b>能正確拿出老師指令的數量（例如：3 次中 2 次正確）。',
+                        '<b>口說評量：</b>能跟著老師手口一致點數。'
+                    ]
+                }
+            },
+            // 身體
+            {
+                categoryKey: 'physical',
+                categoryName: '身體活動健康 (六大核心素養)',
+                title: '模擬動物：模仿「<span class="theme-placeholder"></span>」',
+                details: {
+                    objective: [
+                        '能聽懂「山豬」、「老鷹」等動物的族語。',
+                        '能模仿動物的動作，發展大肌肉能力。',
+                        '能遵守遊戲規則，在指定範圍內活動。'
+                    ],
+                    prep: [
+                        '動物圖卡（山豬、老鷹、兔子等）',
+                        '族語音樂',
+                        '呼拉圈（當作山洞或鳥巢）'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (5 分鐘)：</b>老師展示動物圖卡，教授族語名稱，並詢問幼兒：「山豬怎麼走？老鷹怎麼飛？」。',
+                        '<b>二、發展活動 (20 分鐘)：</b>老師播放音樂，並喊出族語口令（例如：「山豬！(vavuy)」），幼兒需模仿山豬在地上爬行。口令變換時，幼兒需變換動作。',
+                        '<b>三、綜合活動 (10 分鐘)：</b>「老鷹抓小雞」遊戲，老師（或耆老）當老鷹，幼兒當小雞，練習聽指令（「老鷹來了！」）並閃躲。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>vavuy (山豬)',
+                        '<b>應用語詞：</b>quljaw (老鷹)',
+                        '<b>應用語詞：</b>(其他動物名稱)'
+                    ],
+                    assessment: [
+                        '<b>聽力評量：</b>能聽懂指令並做出 80% 正確的動作。',
+                        '<b>態度評量：</b>樂於參與肢體活動。'
+                    ]
+                }
+            },
+            // 社會
+            {
+                categoryKey: 'social',
+                categoryName: '社會 (六大核心素養)',
+                title: '好鄰居：拜訪部落耆老 (Vuvu)',
+                details: {
+                    objective: [
+                        '能學習並使用族語的招呼語（你好嗎？謝謝）。',
+                        '能有禮貌地與部落長輩互動。',
+                        '能分享「<span class="theme-placeholder"></span>」主題的小禮物給耆老。'
+                    ],
+                    prep: [
+                        '事先與部落耆老（Vuvu）或文化健康站聯繫。',
+                        '幼兒製作的「<span class="theme-placeholder"></span>」相關小禮物（如：畫作、手工餅乾）。',
+                        '練習招呼語的圖卡。'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (10 分鐘)：</b>行前教育，在教室練習族語招呼語「nanguanguaq sun, Vuvu? (Vuvu 您好嗎?)」和「masalu (謝謝)」。',
+                        '<b>二、發展活動 (20 分鐘)：</b>帶領幼兒實際拜訪耆老，並鼓勵幼兒使用族語打招呼及贈送小禮物。由耆老分享 1-2 個小故事。',
+                        '<b>三、綜合活動 (5-10 分鐘)：</b>返回教室後，老師帶領幼兒分享心得，並再次複習招呼語。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>Vuvu (爺爺/奶奶)',
+                        '<b>應用句型：</b>nanguanguaq sun? (你好嗎?)',
+                        '<b>應用語詞：</b>masalu (謝謝)'
+                    ],
+                    assessment: [
+                        '<b>口說評量：</b>至少 80% 的幼兒敢開口說出招呼語（可跟隨老師）。',
+                        '<b>態度評量：</b>能表現出對長輩的禮貌。'
+                    ]
+                }
+            },
+            // 情緒
+            {
+                categoryKey: 'emotion',
+                categoryName: '情緒 (六大核心素養)',
+                title: '情緒識別：我的「<span class="theme-placeholder"></span>」心情',
+                details: {
+                    objective: [
+                        '能認識「開心」和「難過」的族語。',
+                        '能透過表情圖卡，指認出對應的情緒。'
+                    ],
+                    prep: [
+                        '情緒圖卡（開心、難過、生氣）',
+                        '族語詞彙卡',
+                        '鏡子'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (5 分鐘)：</b>老師做出「開心」的表情，問幼兒：「老師現在的心情是什麼？」。',
+                        '<b>二、發展活動 (20 分鐘)：</b>老師出示「開心」和「難過」的圖卡，教授族語。帶領幼兒照鏡子，練習做出兩種表情。玩「情緒心臟病」，老師念族語，幼兒拍打正確的圖卡。',
+                        '<b>三、綜合活動 (10 分鐘)：</b>老師分享「<span class="theme-placeholder"></span>」主題的繪本，並詢問幼兒：「故事裡的主角現在是什麼心情？」。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>(開心的族語)',
+                        '<b>應用語詞：</b>(難過的族語)',
+                        '<b>應用語詞：</b>(生氣的族語)'
+                    ],
+                    assessment: [
+                        '<b>聽力評量：</b>能正確指認老師說出的情緒圖卡（3 次中 2 次正確）。',
+                        '<b>實作評量：</b>能做出 1-2 種指定的情緒表情。'
+                    ]
+                }
+            },
+            // 美感
+            {
+                categoryKey: 'aesthetics',
+                categoryName: '美感 (六大核心素養)',
+                title: '族語歌謠學唱：〈<span class="theme-placeholder"></span>之歌〉',
+                details: {
+                    objective: [
+                        '能聽懂並跟唱〈<span class="theme-placeholder"></span>之歌〉的簡易歌詞。',
+                        '能搭配音樂，做出簡易的身體律動。',
+                        '能體驗族語歌謠的樂趣。'
+                    ],
+                    prep: [
+                        '主題相關的族語歌謠音樂。',
+                        '歌詞海報（附圖案）。',
+                        '簡易樂器（如：沙鈴、鈴鼓）。'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (5 分鐘)：</b>老師播放歌謠，邀請幼兒隨意擺動身體。',
+                        '<b>二、發展活動 (20 分鐘)：</b>老師展示歌詞海報，逐句帶領幼兒唸讀歌詞，並解釋意思。全體一起跟著音樂哼唱。發下樂器，邀請幼兒邊唱邊打節奏。',
+                        '<b>三、綜合活動 (10 分鐘)：</b>分組上台，進行小小表演。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>（歌詞中的關鍵詞 1）',
+                        '<b>應用語詞：</b>（歌詞中的關鍵詞 2）',
+                        '<b>應用語詞：</b>kina (唱歌)'
+                    ],
+                    assessment: [
+                        '<b>口說評量：</b>能開口跟唱 50% 以上的歌詞。',
+                        '<b>態度評量：</b>樂於參與歌唱與律動。'
+                    ]
+                }
+            },
+            // 親子共學
+            {
+                categoryKey: 'parentChild',
+                categoryName: '親子共學 (部落社區參與)',
+                title: '親子學習單：回家練習「<span class="theme-placeholder"></span>」',
+                details: {
+                    objective: [
+                        '能將課堂所學的族語帶回家中。',
+                        '能邀請家長（或三代）共同完成學習單。',
+                        '增進族語在家庭中的使用機會。'
+                    ],
+                    prep: [
+                        '設計一份 A4 大小的親子學習單（參考計畫書附件）。',
+                        '內容包含 1-2 個關鍵單詞、1 句簡易對話。',
+                        '包含「孩子任務」、「與爸媽任務」、「與Vuvu任務」。'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (5 分鐘)：</b>老師在課堂上介紹「<span class="theme-placeholder"></span>」的學習單內容，並示範如何完成。',
+                        '<b>二、發展活動 (課後)：</b>幼兒將學習單帶回家，利用週末時間與家人共同完成。',
+                        '<b>三、綜合活動 (隔週)：</b>幼兒帶回學習單，老師給予蓋章獎勵，並邀請 1-2 位幼兒分享與家人共學的經驗。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>（主題單詞 1）',
+                        '<b>應用語詞：</b>（主題單詞 2）',
+                        '<b>應用句型：</b>（一句簡易對話，例如：你喜歡...嗎？）'
+                    ],
+                    assessment: [
+                        '<b>實作評量：</b>學習單的完成度。',
+                        '<b>態度評量：</b>幼兒分享時的投入程度。'
+                    ]
+                }
+            },
+            // 老幼共學
+            {
+                categoryKey: 'elderChild',
+                categoryName: '老幼共學 (部落社區參與)',
+                title: '老幼共煮：「<span class="theme-placeholder"></span>」點心',
+                details: {
+                    objective: [
+                        '能認識 1-2 種「<span class="theme-placeholder"></span>」相關食材的族語。',
+                        '能與耆老互動，並觀察耆老的製作過程。',
+                        '能體驗共食共樂的氛圍。'
+                    ],
+                    prep: [
+                        '邀請 1-2 位部落耆老（Vuvu）入園。',
+                        '準備「<span class="theme-placeholder"></span>」相關的食材（如：地瓜、小米）。',
+                        '簡易烹飪器具（需注意安全）。'
+                    ],
+                    steps: [
+                        '<b>一、引起動機 (10 分鐘)：</b>耆老（Vuvu）介紹今天的主題食材，並教授族語名稱。',
+                        '<b>二、發展活動 (25 分鐘)：</b>耆老示範如何製作點心，幼兒在旁觀察或協助簡易、安全的步驟（例如：搓湯圓、洗地瓜）。過程中，老師協助幼兒用族語向 Vuvu 提問或回應。',
+                        '<b>三、綜合活動 (10 分鐘)：</b>共食時間，品嚐成品，並帶領幼兒用族語向 Vuvu 說「masalu (謝謝)」。'
+                    ],
+                    vocab: [
+                        '<b>應用語詞：</b>（食材 1 的族語）',
+                        '<b>應用語詞：</b>（食材 2 的族語）',
+                        '<b>應用語詞：</b>masalu (謝謝)',
+                        '<b>應用語詞：</b>na-iy-ni! (好吃!)'
+                    ],
+                    assessment: [
+                        '<b>口說評量：</b>能說出至少 1 種食材的族語。',
+                        '<b>態度評量：</b>能有禮貌地與耆老互動，並樂於品嚐。'
+                    ]
+                }
+            }
+        ];
+
+        // --- 類別定義 ---
+        const categories = [
+            { key: 'language', name: '語文 (六大核心素養)' },
+            { key: 'cognition', name: '認知 (六大核心素養)' },
+            { key: 'physical', name: '身體活動健康 (六大核心素養)' },
+            { key: 'social', name: '社會 (六大核心素養)' },
+            { key: 'emotion', name: '情緒 (六大核心素養)' },
+            { key: 'aesthetics', name: '美感 (六大核心素養)' },
+            { key: 'parentChild', name: '親子共學 (部落社區參與)' },
+            { key: 'elderChild', name: '老幼共學 (部落社區參與)' }
+        ];
+
+        // --- Modal 相關控制 ---
+        const modal = document.getElementById('modal');
+        const modalCloseBtn = document.getElementById('modal-close');
+        const modalOverlay = document.getElementById('modal-overlay');
+
+        function openModal() {
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('pointer-events-auto', 'opacity-100');
+            document.body.classList.add('modal-active');
+            modal.offsetWidth;
+            document.getElementById('modal-content').classList.remove('-translate-y-12');
+            document.getElementById('modal-content').classList.add('translate-y-0');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-content').classList.remove('translate-y-0');
+            document.getElementById('modal-content').classList.add('-translate-y-12');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.remove('pointer-events-auto');
+                modal.classList.add('pointer-events-none');
+                document.body.classList.remove('modal-active');
+            }, 250);
+        }
+
+        modalCloseBtn.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', closeModal);
+
+        // --- ** 新增 ** API 相關功能 ---
+
+        // API Key (依規定留空)
+        const apiKey = ""; 
+
+        /**
+         * 使用指數退避策略呼叫 API
+         * @param {string} apiUrl API 端點
+         * @param {object} payload 請求內容
+         * @param {number} retries 重試次數
+         * @param {number} delay 延遲毫秒數
+         * @returns {Promise<object>} API 回應或錯誤物件
+         */
+        async function fetchApiWithBackoff(apiUrl, payload, retries = 5, delay = 1000) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // 僅對 429 (請求過多) 或 5xx (伺服器錯誤) 進行重試
+                    if (response.status === 429 || response.status >= 500) {
+                        throw new Error(`API Error: ${response.status}`);
+                    } else {
+                        // 用戶端錯誤 (例如 400)，直接回報，不重試
+                        const errorResult = await response.json();
+                        console.error("Client error:", errorResult);
+                        return { error: `API 請求失敗: ${errorResult.error?.message || response.statusText}` };
+                    }
+                }
+                return await response.json();
+
+            } catch (error) {
+                if (retries > 0) {
+                    // 等待後重試，不將重試過程 log 至 console
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchApiWithBackoff(apiUrl, payload, retries - 1, delay * 2);
+                } else {
+                    // 重試次數用盡
+                    console.error("API retries exceeded:", error);
+                    return { error: "API 請求已達重試上限" };
+                }
+            }
+        }
+
+        /**
+         * 處理圖片產生按鈕點擊事件
+         */
+        async function handleImageGeneration() {
+            const promptInput = document.getElementById('image-prompt');
+            const loading = document.getElementById('image-loading');
+            const resultContainer = document.getElementById('image-result-container');
+            const placeholder = document.getElementById('image-result-placeholder');
+            const genButton = document.getElementById('generate-image-btn');
+
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                // 不使用 alert()
+                promptInput.focus();
+                promptInput.classList.add('border-red-500');
+                return;
+            }
+            promptInput.classList.remove('border-red-500');
+
+            // 顯示載入狀態並禁用按鈕
+            loading.classList.remove('hidden');
+            if (placeholder) placeholder.classList.add('hidden'); // 隱藏 placeholder 文字
+            resultContainer.innerHTML = ''; // 清空上一張圖片
+            genButton.disabled = true;
+            genButton.textContent = '產生中...';
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+            const payload = {
+                instances: { prompt: prompt },
+                parameters: { "sampleCount": 1 }
+            };
+
+            const result = await fetchApiWithBackoff(apiUrl, payload);
+
+            // 隱藏載入狀態並恢復按鈕
+            loading.classList.add('hidden');
+            genButton.disabled = false;
+            genButton.textContent = '產生圖片';
+
+            if (result.error) {
+                resultContainer.innerHTML = `<p class="text-red-500 p-4">圖片產生失敗：${result.error}</p>`;
+            } else if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                resultContainer.innerHTML = `<img src="${imageUrl}" alt="${prompt}" class="w-full h-auto object-contain max-h-96 rounded-lg shadow-md">`;
+            } else {
+                resultContainer.innerHTML = `<p class="text-red-500 p-4">圖片產生失敗：未收到有效的圖片資料。</p>`;
+                if (placeholder) placeholder.classList.remove('hidden'); // 顯示 placeholder 文字
+            }
+        }
+        
+        // --- 主要邏輯 (同前) ---
+        document.getElementById('generate-btn').addEventListener('click', generatePlan);
+
+        // *** 新增 ***：主題按鈕與輸入框的連動
+        const themeButtons = document.querySelectorAll('.theme-btn');
+        const themeInput = document.getElementById('theme-input');
+
+        themeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 將按鈕文字填入輸入框
+                themeInput.value = btn.textContent;
+                
+                // 處理按鈕高亮
+                themeButtons.forEach(b => b.classList.remove('bg-blue-600', 'text-white'));
+                themeButtons.forEach(b => b.classList.add('bg-gray-100', 'text-blue-700'));
+                btn.classList.add('bg-blue-600', 'text-white');
+                btn.classList.remove('bg-gray-100', 'text-blue-700');
+            });
+        });
+
+        // *** 新增 ***：當使用者手動輸入時，取消按鈕高亮
+        themeInput.addEventListener('input', () => {
+            let isCustom = true;
+            themeButtons.forEach(btn => {
+                if (btn.textContent === themeInput.value) {
+                    isCustom = false;
+                    // 如果輸入內容剛好等於某按鈕，反向高亮它
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    btn.classList.remove('bg-gray-100', 'text-blue-700');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white');
+                    btn.classList.add('bg-gray-100', 'text-blue-700');
+                }
+            });
+        });
+
+
+        function generatePlan() {
+            const themeInput = document.getElementById('theme-input');
+            const output = document.getElementById('plan-output');
+            
+            let theme = themeInput.value.trim();
+            if (theme === "") {
+                theme = "自訂主題";
+            }
+            
+            output.innerHTML = '';
+            
+            const themeTitle = document.createElement('h2');
+            themeTitle.className = "text-2xl font-bold text-blue-800 mb-6";
+            themeTitle.textContent = `本週主題：${theme}`;
+            output.appendChild(themeTitle);
+            
+            const grid = document.createElement('div');
+            grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6";
+            
+            categories.forEach(category => {
+                const availableActivities = activityDatabase.filter(act => act.categoryKey === category.key);
+                const randomIndex = Math.floor(Math.random() * availableActivities.length);
+                const activity = availableActivities[randomIndex];
+                const card = createActivityCard(activity, theme);
+                grid.appendChild(card);
+            });
+            
+            output.appendChild(grid);
+        }
+
+        // 輔助功能：建立單張活動卡片 (同前)
+        function createActivityCard(activity, theme) {
+            const card = document.createElement('button');
+            card.className = "bg-gray-50 border border-gray-200 rounded-lg p-5 shadow-sm transition transform hover:shadow-md hover:scale-[1.02] text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50";
+            
+            const cardTitle = document.createElement('h3');
+            cardTitle.className = "text-base font-bold text-blue-600 mb-2";
+            cardTitle.textContent = activity.categoryName;
+            
+            const cardActivity = document.createElement('p');
+            cardActivity.className = "text-gray-800";
+            cardActivity.innerHTML = activity.title.replace(/<span class="theme-placeholder"><\/span>/g, theme);
+            
+            card.appendChild(cardTitle);
+            card.appendChild(cardActivity);
+
+            card.addEventListener('click', () => {
+                showDetails(activity, theme);
+            });
+            
+            return card;
+        }
+
+        /**
+         * 建立 Modal 內的 HTML 內容 (已更新)
+         * @param {object} activity 活動物件
+         * @param {string} theme 當前主題
+         * @returns {string} HTML 字串
+         */
+        function buildModalHtml(activity, theme) {
+            // 幫手函式：替換主題
+            const fillThemeSpan = (str) => str.replace(/<span class="theme-placeholder"><\/span>/g, `<span class="font-semibold text-blue-800">${theme}</span>`);
+            
+            // 幫手函式：格式化列表
+            const formatList = (items) => {
+                return items.map(item => `<li class="text-gray-700">${fillThemeSpan(item)}</li>`).join('');
+            };
+             // 幫手函式：格式化流程
+            const formatSteps = (items) => {
+                return items.map(item => `<p class="text-gray-700 mt-1">${fillThemeSpan(item)}</p>`).join('');
+            };
+
+            // 自動產生建議的中文 prompt
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = activity.title;
+            const plainActivityTitle = tempDiv.textContent || tempDiv.innerText || "";
+            const simpleActivity = plainActivityTitle.split('：')[1] || plainActivityTitle; // 取出活動名稱
+            // 改成中文提示詞
+            const defaultPrompt = `簡單的著色圖風格，${theme}，${simpleActivity}，適合兒童，線條清晰，白色背景，沒有文字`;
+
+
+            return `
+                <h4 class="text-xl font-bold text-gray-800 mb-2">活動名稱：<span class="font-normal">${fillThemeSpan(activity.title)}</span></h4>
+                <h5 class="text-lg font-bold text-gray-700 mb-4">對應素養：<span class="font-normal">${activity.categoryName}</span></h5>
+                
+                <div class="space-y-6">
+                    <div>
+                        <h5 class="text-lg font-semibold text-blue-700 border-b-2 border-blue-200 pb-1 mb-3">學習目標</h5>
+                        <ul class="list-disc list-inside space-y-1">${formatList(activity.details.objective)}</ul>
+                    </div>
+
+                    <div>
+                        <h5 class="text-lg font-semibold text-blue-700 border-b-2 border-blue-200 pb-1 mb-3">活動準備</h5>
+                        <ul class="list-disc list-inside space-y-1">${formatList(activity.details.prep)}</ul>
+                    </div>
+
+                    <!-- *** 新增的 AI 圖片產生區塊 *** -->
+                    <div>
+                        <h5 class="text-lg font-semibold text-blue-700 border-b-2 border-blue-200 pb-1 mb-3">教具圖片產生 (AI)</h5>
+                        <!-- 修改提示文字 -->
+                        <p class="text-gray-600 text-sm mb-2">請輸入 <strong>中文</strong> 提示詞來產生教學圖片（例如：可愛的卡通動物，簡單的著色圖風格）。</p>
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                            <!-- value 已更新為中文的 defaultPrompt -->
+                            <input type="text" id="image-prompt" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300" value="${defaultPrompt}">
+                            <button id="generate-image-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition transform hover:scale-105 whitespace-nowrap">
+                                產生圖片
+                            </button>
+                        </div>
+                        <div id="image-loading" class="text-center text-gray-500 my-4 hidden">
+                            <svg class="animate-spin h-5 w-5 text-blue-600 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="ml-2 align-middle">圖片產生中，請稍候...</span>
+                        </div>
+                        <div id="image-result-container" class="mt-4 p-2 bg-gray-100 rounded-lg min-h-[100px] flex items-center justify-center">
+                            <p id="image-result-placeholder" class="text-gray-400">產生的圖片將顯示於此</p>
+                        </div>
+                    </div>
+                    <!-- *** 區塊結束 *** -->
+
+                    <div>
+                        <h5 class="text-lg font-semibold text-blue-700 border-b-2 border-blue-200 pb-1 mb-3">活動流程</h5>
+                        <div class="space-y-2">${formatSteps(activity.details.steps)}</div>
+                    </div>
+
+                    <div>
+                        <h5 class="text-lg font-semibold text-blue-700 border-b-2 border-blue-200 pb-1 mb-3">應用族語 (範例)</h5>
+                        <ul class="list-disc list-inside space-y-1">${formatList(activity.details.vocab)}</ul>
+                    </div>
+
+                    <div>
+                        <h5 class="text-lg font-semibold text-blue-700 border-b-2 border-blue-200 pb-1 mb-3">評量方式</h5>
+                        <ul class="list-disc list-inside space-y-1">${formatList(activity.details.assessment)}</ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * 顯示詳細教案並綁定事件 (已更新)
+         * @param {object} activity 活動物件
+         * @param {string} theme 當前主題
+         */
+        function showDetails(activity, theme) {
+            const modalBody = document.getElementById('modal-body');
+            // 產生並填入完整的 HTML 內容
+            modalBody.innerHTML = buildModalHtml(activity, theme);
+            
+            // ** 關鍵 **：在 HTML 填入後，才能抓到按鈕並綁定點擊事件
+            document.getElementById('generate-image-btn').addEventListener('click', handleImageGeneration);
+
+            // 打開 Modal
+            openModal();
+        }
+
+    </script>
+</body>
+</html>
