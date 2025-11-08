@@ -530,6 +530,17 @@
                         <p class="text-gray-700">${assessment}</p>
                     </div>
 
+                    <!-- 教學省思 (AI 產生) -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 border-b-2 border-indigo-200 pb-1 mb-2">教學省思 (AI 產生)</h3>
+                        <button id="ai-reflection-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition mb-2">
+                            產生教學省思
+                        </button>
+                        <div id="ai-reflection-output" class="mt-2 p-3 bg-gray-50 rounded-lg min-h-[100px] text-gray-700 whitespace-pre-wrap">
+                            <!-- 省思內容會顯示在這裡 -->
+                        </div>
+                    </div>
+
                     <!-- AI 圖片產生器 -->
                     <div class="pt-4 border-t border-gray-200">
                         <h3 class="text-lg font-semibold text-gray-800 mb-2">教具圖片產生 (AI)</h3>
@@ -549,11 +560,103 @@
 
             // 必須在 modalBody.innerHTML 之後才能抓到按鈕
             document.getElementById('ai-generate-btn').addEventListener('click', handleImageGeneration);
+            // 替省思按鈕加上事件監聽
+            document.getElementById('ai-reflection-btn').addEventListener('click', () => handleReflectionGeneration(activity, theme, plan));
+        }
+
+        // --- AI 文字產生相關函式 (教學省思) ---
+
+        // 4. 處理省思產生點擊
+        async function handleReflectionGeneration(activity, theme, plan) {
+            const outputDiv = document.getElementById('ai-reflection-output');
+            outputDiv.innerHTML = '<div class="loader mx-auto"></div>'; // 顯示 Loading
+
+            const systemPrompt = "你是一位經驗豐富的幼兒園沉浸式族語教保員。請根據以下提供的教案內容，撰寫一段 150-200 字的「教學省思」。省思內容應包含：(1) 對此活動預期幼兒學習成效的評估。(2) 教保員在引導過程中應注意的重點（例如：如何引導族語使用、如何處理幼兒的反應）。(3) 活動可以如何延伸或改進。請使用繁體中文。";
+            
+            // 清理活動流程中的 HTML 標籤
+            const cleanActivityFlow = plan.activityFlow.replace(/<[^>]*>/g, "\n").replace(/\n+/g, "\n").trim();
+
+            const userQuery = `
+        教案主題：${theme}
+        活動名稱：${activity.title}
+        學習指標：
+        ${(plan.learningIndicators || []).join('\n')}
+        活動流程：
+        ${cleanActivityFlow}
+        評量方式：${plan.assessment}
+
+        請開始撰寫教學省思：
+            `;
+
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                const result = await fetchTextApiWithBackoff(payload);
+                
+                if (result.candidates && result.candidates[0].content?.parts?.[0]?.text) {
+                    const reflectionText = result.candidates[0].content.parts[0].text;
+                    outputDiv.innerHTML = reflectionText;
+                } else {
+                    throw new Error('AI 未能返回有效的省思內容。');
+                }
+
+            } catch (error) {
+                console.error('AI 省思產生失敗:', error);
+                outputDiv.innerHTML = `<p class="text-red-500">省思產生失敗：${error.message}</p>`;
+            }
+        }
+
+        // 5. 呼叫文字 API (gemini-2.5-flash-preview-09-2025)
+        async function fetchTextApiWithBackoff(payload, retries = 3, delay = 1000) {
+            const apiKey = ""; // API Key 會在執行環境中自動提供
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(`API 錯誤： ${response.status} ${response.statusText}. Body: ${errorBody}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        throw new Error(`API 返回錯誤： ${result.error.message}`);
+                    }
+                    if (!result.candidates || result.candidates.length === 0) {
+                        if (result.promptFeedback && result.promptFeedback.blockReason) {
+                            throw new Error(`請求被阻擋： ${result.promptFeedback.blockReason}`);
+                        }
+                        throw new Error('API 未返回任何候選內容。');
+                    }
+                    
+                    return result; // 成功
+                
+                } catch (error) {
+                    // 不在控制台顯示重試的日誌，除非是最後一次失敗
+                    if (i === retries - 1) {
+                        console.error(`AI text call failed after ${retries} attempts: ${error.message}`);
+                        throw error; // 最後一次嘗試失敗，拋出錯誤
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // 指數退避
+                }
+            }
         }
 
         // --- AI 圖片產生相關函式 ---
 
-        // 4. 處理圖片產生點擊
+        // 6. 處理圖片產生點擊
         async function handleImageGeneration() {
             const promptInput = document.getElementById('ai-prompt-input');
             const outputDiv = document.getElementById('ai-image-output');
@@ -568,7 +671,7 @@
 
             try {
                 // 呼叫 API，請求 3 張圖片
-                const result = await fetchApiWithBackoff({
+                const result = await fetchImageApiWithBackoff({
                     instances: { prompt: prompt },
                     parameters: { "sampleCount": 3 }
                 });
@@ -592,8 +695,8 @@
             }
         }
 
-        // 5. 呼叫 API (使用 imagen-3.0-generate-002)
-        async function fetchApiWithBackoff(payload, retries = 3, delay = 1000) {
+        // 7. 呼叫圖片 API (imagen-3.0-generate-002)
+        async function fetchImageApiWithBackoff(payload, retries = 3, delay = 1000) {
             const apiKey = ""; // API Key 會在執行環境中自動提供
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
@@ -606,7 +709,8 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error(`API 錯誤： ${response.status} ${response.statusText}`);
+                        const errorBody = await response.text();
+                        throw new Error(`API 錯誤： ${response.status} ${response.statusText}. Body: ${errorBody}`);
                     }
 
                     const result = await response.json();
@@ -618,7 +722,9 @@
                     return result; // 成功
                 
                 } catch (error) {
+                     // 不在控制台顯示重試的日誌，除非是最後一次失敗
                     if (i === retries - 1) {
+                        console.error(`AI image call failed after ${retries} attempts: ${error.message}`);
                         throw error; // 最後一次嘗試失敗，拋出錯誤
                     }
                     await new Promise(resolve => setTimeout(resolve, delay * (i + 1))); // 指數退避
